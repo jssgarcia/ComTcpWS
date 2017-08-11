@@ -1,6 +1,6 @@
 {
   "SerialOption": {
-    "PortName": "COM2",
+    "PortName": "COM1",
     "Baudrate": 9600,
     "Databits": 8,
     "Stopbits": 1,

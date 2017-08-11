@@ -5,17 +5,17 @@ import (
 	"ty/csi/ws/ComTcpWS/Global"
 	lg "ty/csi/ws/ComTcpWS/lgg"
 	"ty/csi/ws/ComTcpWS/Utils"
-	"github.com/jacobsa/go-serial/serial"
+	rs "github.com/tarm/serial"
 	"time"
-	"io"
-	"encoding/hex"
+	"log"
 )
 
 type SerialReaderInfo struct {
 	OpenOptions Global.SerialOption
 	openOptionsTx string
+	ChannelReceiveData chan string		//Canal para enviar datos al servidor
 
-	portConn io.ReadWriteCloser
+	portConn *rs.Port
 }
 
 var modName = "SERIAL-READER"
@@ -27,6 +27,10 @@ func initSerial(ctx context.Context,info *SerialReaderInfo) {
 	lg.Lgdef.Info("SERIAL-READER:: INIT " + info.openOptionsTx)
 
 	ticker := time.NewTicker(5 * time.Second)
+
+	defer func() {
+		lg.Lgdef.Printf("[%s] initSerial exit",modName)
+	}()
 
 	for {
 		select {
@@ -49,63 +53,82 @@ func initSerial(ctx context.Context,info *SerialReaderInfo) {
 
 func readSerialPort(ctx context.Context,info *SerialReaderInfo) error {
 
-	options := serial.OpenOptions{
-		PortName:   info.OpenOptions.Portname,
-		BaudRate:   uint(info.OpenOptions.Baudrate),
-		DataBits:   uint(info.OpenOptions.Databits),
-		StopBits:   uint(info.OpenOptions.Stopbits),
-		ParityMode: intToParityMode(info.OpenOptions.ParityMode),
-		InterCharacterTimeout: 0,
-		MinimumReadSize:32,
-	}
+	cnfg := &rs.Config{
+		Name: info.OpenOptions.Portname,
+		Baud: int(info.OpenOptions.Baudrate),
+		Size:byte(info.OpenOptions.Databits),
+		StopBits: rs.StopBits(info.OpenOptions.Stopbits),
+		Parity:rs.Parity(info.OpenOptions.ParityMode)}
+
+	readData := ""
+	readCount :=0
+
+	tmrCheckRead := time.NewTimer(5 * time.Second)
+	tmrCheckRead.Stop()
+
+	//Check if Data received for Port
+	go func() {
+		for {
+			select {
+			case <- tmrCheckRead.C:
+				if readData=="" {
+					continue
+				}
+
+				log.Printf("[%s] DATA READED: Bytes:%n Dato:%s",modName, readCount,readData)
+				tmrCheckRead.Stop()
+
+				sendDataToServer(info,readData)
+
+				//Asignamos
+				readCount=0
+				readData=""
+
+				break
+			}
+		}
+	}()
 
 	// Open the port.
-	port, err := serial.Open(options)
+	conn, err := rs.OpenPort(cnfg)
 	if err != nil {
 		lg.Lgdef.Errorf("%s: ERROR Open Serial Port. %v",modName, err)
 		return err
 	}
 
-	if err != nil {
-		lg.Lgdef.Errorf("[%s] Error opening serial port: %s",modName, err)
-		return err
-	} else {
-		defer port.Close()
-	}
-
-	info.portConn = port
+	info.portConn = conn
 
 	defer func() {
 		if r := recover(); r != nil {
-			lg.Lgdef.Errorf("UNHANDLER ERROR [%s %s] %s",modName, info.openOptionsTx,r)
+			lg.Lgdef.Errorf("[%s] UNHANDLER ERROR [%s] %s",modName, info.openOptionsTx,r)
 		}
-		if port!=nil {
-			port.Close()
+		if conn!=nil {
+			conn.Close()
 		}
 	}()
 
+	buf := make([]byte, 128)
+
 	for {
-		buf := make([]byte, 32)
-		n, err := port.Read(buf)
+		n, err := conn.Read(buf)
 		if err != nil {
-			if err != io.EOF {
-				lg.Lgdef.Errorf("[%s] Error opening serial port: %s",modName, err)
-			}
-		} else {
-			buf = buf[:n]
-			readtext :=  hex.EncodeToString(buf)
-			lg.Lgdef.Infof("%s Read data from port. '%s'",modName,readtext)
+			log.Fatal(err)
 		}
+
+		if readCount==0 {
+			tmrCheckRead.Reset(5 * time.Second)
+			lg.Lgdef.Printf("[%s] Starting data reading... >>>",modName)
+		}
+
+		readCount++
+		readData = readData + string(buf[:n])
 	}
 }
 
-func intToParityMode(value int) serial.ParityMode {
-	switch value {
-	case 1: return serial.PARITY_ODD
-	case 2: return serial.PARITY_EVEN
-	default:
-		return serial.PARITY_NONE
-	}
+func sendDataToServer(info *SerialReaderInfo,data string) {
+
+	info.ChannelReceiveData <- data
+
 }
 
 func closeConn(info *SerialReaderInfo) {
@@ -115,7 +138,7 @@ func closeConn(info *SerialReaderInfo) {
 }
 
 func disposeSerial(info *SerialReaderInfo) {
-	lg.Lgdef.Debugf("%s(%s): == Dispose INIT === ",modName)
+	lg.Lgdef.Debugf("[%s] : == Dispose INIT === ",modName)
 	closeConn(info)
-	lg.Lgdef.Debugf("%s(%s): === Dispose FINISH === ",modName)
+	lg.Lgdef.Debugf("[%s]): === Dispose FINISH === ",modName)
 }

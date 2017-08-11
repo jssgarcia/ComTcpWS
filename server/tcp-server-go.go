@@ -1,139 +1,150 @@
-package main
-//
-//import (
-//	"net"
-//	//"bufio"
-//	"fmt"
-//	_ "log"
-//	"github.com/tkanos/gonfig"
-//	"os"
-//	"path/filepath"
-//	"time"
-//	"math/rand"
-//	"strconv"
-//	"strings"
-//)
-//
-//type configuration struct {
-//	ServerTcpAddress string `json:"ServerTcpAddress"`
-//}
-//
-//var cnfg configuration
-//var _conn net.Conn
-//
-//func main() {
-//
-//	//getConfig()
-//
-//	if len(os.Args) > 1 {
-//		if (len(os.Args)>=1) { cnfg.ListenAddress = os.Args[1] }
-//		if (len(os.Args)>=2) {
-//			cnfg.RandomInterval = parseRandomRange(os.Args[2])
-//		}
-//	} else {
-//		panic("ServerAdress is not defined")
-//	}
-//
-//	fmt.Printf("Launching server ... %v",cnfg.ListenAddress)
-//
-//	ln,err := net.Listen("tcp", cnfg.ListenAddress)
-//	if err!=nil {
-//		panic("Interface ")
-//	}
-//
-//	//Random seed initializion
-//	rand.Seed(time.Now().Unix())
-//
-//	for {
-//		conn, _ := ln.Accept()
-//		_conn = conn;
-//
-//		//
-//		tmr := time.NewTicker(2 * time.Second)
-//
-//		bcontinue := true
-//
-//		for bcontinue {
-//			select {
-//			case <-tmr.C:
-//
-//				data := strconv.Itoa(getNextRandomValue()) + ".\r"
-//
-//				err := sendData(conn, data)
-//				if err != nil {
-//					fmt.Printf("SERVER: error send data '%s'\n",err)
-//					bcontinue=false
-//				}
-//
-//				break
-//			}
-//		}
-//	}
-//
-//	fmt.Printf("SERVER == Finalizado main ==")
-//}
-//
-//func getNextRandomValue() int{
-//	return  rand.Intn(cnfg.RandomInterval.Max-cnfg.RandomInterval.Min)+cnfg.RandomInterval.Min
-//}
-//
-//func sendData(conn net.Conn, data string) error {
-//	_,err := conn.Write([]byte(data+"\n"))
-//	fmt.Println("TCPServer: message send ..." + data)
-//
-//	return err
-//}
-//
-//func getConfig() {
-//
-//	cnfg = configuration{}
-//
-//	fconfig := "config.dev.json"
-//
-//	//Defaults
-//	//cnfg.ListenAddress="127.0.0.1:8888"
-//
-//	f,_ := filepath.Abs("./server/" + fconfig)
-//
-//	//Obtenemos la configuracion
-//	err := gonfig.GetConf(f,&cnfg)
-//	if err!=nil {
-//		panic("ERROR obtener configuracion: " + err.Error())
-//	}
-//
-//}
-//
-//func parseRandomRange(strrange string) (rg *randomInterval) {
-//
-//	//Defaults
-//	rg = &randomInterval{Max: 1000, Min: 0}
-//
-//	if strrange == "" || !strings.Contains(strrange, ":") {
-//		return rg
-//	}
-//
-//	defer func() {
-//		//Simplemente TryCatch
-//	}()
-//
-//	s := strings.Split(strrange, ":")
-//	if len(s) <= 1 {
-//		return rg
-//	}
-//
-//	rg.Max, _ = strconv.Atoi(s[0])
-//	rg.Min, _ = strconv.Atoi(s[1])
-//
-//	return rg
-//}
-//
-////func startTcpclient() {
-////
-////	ln,err := net.Listen("tcp","127.0.0.1:35349")
-////	if err!=nil {
-////		log.Fatal("FATAL")
-////	}
-////
-////}
-//
-//
+package server
+
+import (
+	"net"
+	"context"
+	"fmt"
+	_ "log"
+	lg "ty/csi/ws/ComTcpWS/lgg"
+	"strings"
+	"errors"
+)
+
+type ServerTcpInfo struct {
+	ServerTcpAddress string
+	ChannelReceiveData chan string		//Canal para enviar datos al servidor
+
+	serverOptionsTx string
+	conn net.Conn
+}
+
+var modName = "SERVER-TCP"
+var _conn net.Conn
+
+func InitServer(ctx context.Context,info *ServerTcpInfo) {
+
+	if info.ServerTcpAddress =="" {
+		panic("ERROR Initiation: Server adddres is not defined. " + info.ServerTcpAddress)
+	}
+
+	lg.Lgdef.Infof("[%s]Launching server ... %v",modName, info.ServerTcpAddress)
+
+	ln,err := net.Listen("tcp", info.ServerTcpAddress)
+	if err!=nil {
+		panic("Interface ")
+	}
+
+	info.conn = nil
+
+
+	go func() {
+
+		for {
+
+			select {
+			case data := <- info.ChannelReceiveData:
+				//Dato recivido desde le Puerto
+
+				if (info.conn != nil) {
+					//Envio datos al cliente
+					lg.Lgdef.Printf("[%s]: DATARAW RECEIVED FOR SEND ... %s \n",modName, data)
+					sendData(info.conn,data)
+				}
+
+				break
+			}
+		}
+
+	}()
+
+	for {
+		conn, _ := ln.Accept()
+		info.conn = conn;
+
+		//Cliente conectado...
+		lg.Lgdef.Infof("[%s] Cliente conectado... ",modName)
+
+		////
+		//tmr := time.NewTicker(2 * time.Second)
+		//
+		//bcontinue := true
+		//
+		//for bcontinue {
+		//	select {
+		//	case <-tmr.C:
+		//
+		//		data := strconv.Itoa(getNextRandomValue()) + ".\r"
+		//
+		//		err := sendData(conn, data)
+		//		if err != nil {
+		//			fmt.Printf("SERVER: error send data '%s'\n",err)
+		//			bcontinue=false
+		//		}
+		//
+		//		break
+		//	}
+		//}
+	}
+
+	fmt.Printf("SERVER == Finalizado main ==")
+}
+
+func sendData(conn net.Conn, data string) error {
+
+	dataparsed,err := parseData(data)
+	if (err!=nil) {
+		lg.Lgdef.Error(err)
+		return err
+	}
+
+	_,errWrite := conn.Write([]byte(dataparsed+"\r"))
+	lg.Lgdef.Infof("[%s]: DATA SEND ... %s \r\n",modName, dataparsed)
+
+	return errWrite
+}
+
+func parseData(data string) (string,error){
+
+	//FORMATO DE DATOS ESPERADO
+	//    06:10   11.6 23.1ºC\n
+	/*
+	a) Trim b) Reemplazar '   ' x ' ' c) Dividir por espacios d) Obtener pos(1) */
+	formatspec := "    06:10   11.6 23.1ºC"
+	newdata := strings.TrimSpace(data)
+	newdata = strings.Replace(data,"   "," ",-1)
+	newdata = removeNoValidCharacters(strings.TrimSpace(newdata))
+	parts := strings.Split(newdata," ")
+
+	if (len(parts)<1){
+		lg.Lgdef.Errorf("[%s] PARSE DATA. '%s'.  NOT FORMAT SPEC. #%s#",modName,data,formatspec)
+		return  "",errors.New("No format spec. Format expexted #" + formatspec + "#")
+	}
+
+	partsNoEmpty := 0
+	for i:=0;i<=len(parts);i++  {
+		if (strings.TrimSpace(parts[i])!="") {
+			partsNoEmpty++
+			if (partsNoEmpty==2) {
+				return strings.TrimSpace(parts[i]), nil
+			}
+		}
+	}
+
+	return "",errors.New("ERROR procesing format. No format spec. Format expexted #" + formatspec + "#")
+
+}
+
+func removeNoValidCharacters(msg string) string {
+	b := make([]byte, len(msg))
+	var bl int
+	for i := 0; i < len(msg); i++ {
+		c := msg[i]
+		if c >= 32 && c < 127 {
+			b[bl] = c
+			bl++
+		}
+	}
+	return string(b[:bl])
+}
+
+

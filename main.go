@@ -16,6 +16,7 @@ import (
 	"strings"
 	"path"
 	"time"
+	tcpserver "ty/csi/ws/ComTcpWS/server"
 )
 
 //region Variables-Modulo
@@ -75,8 +76,16 @@ func initExecution() {
 
 	_ctx.ctx, _ctx.cancel = context.WithCancel(context.Background())
 
+	chDataReceived := make(chan string,1)
+
+	go tcpserver.InitServer(_ctx.ctx, &tcpserver.ServerTcpInfo{
+		ServerTcpAddress: Global.Resources.Config.ServerTcpAddress,
+		ChannelReceiveData: chDataReceived,
+	})
+
 	initSerial(_ctx.ctx,&SerialReaderInfo {
 		OpenOptions: Global.Resources.Config.SerialOption,
+		ChannelReceiveData: chDataReceived,
 	})
 
 	//Iniciamos los clientes TPC para escuchar los sensores
