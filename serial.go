@@ -22,7 +22,7 @@ var modName = "SERIAL-READER"
 
 func initSerial(ctx context.Context,info *SerialReaderInfo) {
 
-	info.openOptionsTx = "SerialOptions: [" + Utils.PrettyPrint(info.openOptionsTx) + "]"
+	info.openOptionsTx = "SerialOptions: [" + Utils.PrettyPrint(info.OpenOptions) + "]"
 
 	lg.Lgdef.Info("SERIAL-READER:: INIT " + info.openOptionsTx)
 

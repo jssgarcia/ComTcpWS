@@ -121,9 +121,9 @@ func initService(){
 	//lg.Lgdef.Debugf("=== INIT SERVICE ===")
 
 	svcConfig := &service.Config{
-		Name:        "CSI-SensorsReaderAndServer",
-		DisplayName: "CSI Sensors Reader and HTTP-Server",
-		Description: "Permite leer los sensores a traves de TCP connection y ademas provee un Servidor HTTP Restful para servirlos.",
+		Name:        "CSI-SerialReaderAndTcpServer",
+		DisplayName: "CSI Serial Reader And TCP-Server",
+		Description: "Permite leer un puerto serie y transmitir los valores a un servidor TCP (interfaz) para poder obtenerlos a traves de una IP.",
 	}
 
 	prg := &program{}
