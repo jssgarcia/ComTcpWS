@@ -6,6 +6,7 @@ type SerialOption struct {
 	Databits int `json:"DataBits"`
 	Stopbits int `json:"StopBits"`
 	ParityMode int  `json:"ParityMode"`
+	ReadInternval int  `json:"ReadInternval"` //Intervalo de tiempo (ms) que revisa si ha llegado nuevos datos
 }
 //Configuracion
 type Configuration struct {

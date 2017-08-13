@@ -14,6 +14,7 @@ type SerialReaderInfo struct {
 	OpenOptions Global.SerialOption
 	openOptionsTx string
 	ChannelReceiveData chan string		//Canal para enviar datos al servidor
+	ReadInterval int //Intervalo de tiempo (ms) que revisa si ha llegado nuevos datos
 
 	portConn *rs.Port
 }
@@ -26,7 +27,7 @@ func initSerial(ctx context.Context,info *SerialReaderInfo) {
 
 	lg.Lgdef.Info("SERIAL-READER:: INIT " + info.openOptionsTx)
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(20 * time.Second)
 
 	defer func() {
 		lg.Lgdef.Printf("[%s] initSerial exit",modName)
@@ -58,12 +59,17 @@ func readSerialPort(ctx context.Context,info *SerialReaderInfo) error {
 		Baud: int(info.OpenOptions.Baudrate),
 		Size:byte(info.OpenOptions.Databits),
 		StopBits: rs.StopBits(info.OpenOptions.Stopbits),
-		Parity:rs.Parity(info.OpenOptions.ParityMode)}
+		Parity:rs.Parity(info.OpenOptions.ParityMode),
+	}
 
 	readData := ""
 	readCount :=0
 
-	tmrCheckRead := time.NewTimer(5 * time.Second)
+	if info.ReadInterval==0 {
+		info.ReadInterval = 1000
+	}
+
+	tmrCheckRead := time.NewTimer(time.Duration(info.ReadInterval))
 	tmrCheckRead.Stop()
 
 	//Check if Data received for Port
