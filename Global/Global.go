@@ -1,12 +1,13 @@
 package Global
 
 type SerialOption struct {
-	Portname string `json:"Portname"`
-	Baudrate int `json:"Baudrate"`
-	Databits int `json:"DataBits"`
-	Stopbits int `json:"StopBits"`
-	ParityMode int  `json:"ParityMode"`
-	ReadInternval int  `json:"ReadInternval"` //Intervalo de tiempo (ms) que revisa si ha llegado nuevos datos
+	Portname          string `json:"Portname"`
+	Baudrate          int `json:"Baudrate"`
+	Databits          int `json:"DataBits"`
+	Stopbits          int `json:"StopBits"`
+	ParityMode        int  `json:"ParityMode"`
+	ReadTimeout		  int `json:"ReadTimeout"`	//if =0, Blocking mode: wait until at least read one byte.  >0  ReadTimeout and the Read() will timeout returning 0 bytes.
+	ReadCheckInterval int  `json:"ReadInternval"` //Intervalo de tiempo (ms) que revisa si ha llegado nuevos datos
 }
 //Configuracion
 type Configuration struct {

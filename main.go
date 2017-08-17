@@ -7,7 +7,6 @@ import (
 	"context"
 	"github.com/kardianos/service"
 	lg "ty/csi/ws/ComTcpWS/lgg"
-	_ "github.com/Sirupsen/logrus"
 	"log"
 	"os"
 	"path/filepath"
@@ -41,6 +40,7 @@ func (p *program) run() {
 	initExecution()
 }
 func (p *program) Stop(s service.Service) error {
+	lg.Lgdef.Debugf("[%s. Service Action] STOP ... ",modName)
 	dispose()
 	return nil
 }
@@ -66,7 +66,7 @@ func initExecution() {
 		panic(err)
 	}
 	//
-	lg.Lgdef.Info("MAIN: == Init Main func ===\n\n")
+	lg.Lgdef.Info("******** INICIO PROGRAMA [InitExecution] ***************\n\n")
 	getConfig()
 
 	defer func() {

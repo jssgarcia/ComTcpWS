@@ -45,10 +45,13 @@ func InitServer(ctx context.Context,info *ServerTcpInfo) {
 			case data := <- info.ChannelReceiveData:
 				//Dato recivido desde le Puerto
 
+				lg.Lgdef.Printf("[%s]: DATARAW RECEIVED FOR SEND ... %s \n",modName, data)
+
 				if (info.conn != nil) {
 					//Envio datos al cliente
-					lg.Lgdef.Printf("[%s]: DATARAW RECEIVED FOR SEND ... %s \n",modName, data)
 					sendData(info.conn,data)
+				} else {
+					lg.Lgdef.Warnf("[%s]: NINGUN CLIENTE CONECTADO. NO SE ENVIA NADA.\n", modName)
 				}
 
 				break
@@ -89,7 +92,14 @@ func InitServer(ctx context.Context,info *ServerTcpInfo) {
 	fmt.Printf("SERVER == Finalizado main ==")
 }
 
-func sendData(conn net.Conn, data string) error {
+func sendData(conn net.Conn, data string) (err error) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			lg.Lgdef.Errorf("[%s.sendData] UNHANDLER ERROR [%s]",modName, r)
+			err = r.(error)
+		}
+	}()
 
 	dataparsed,err := parseData(data)
 	if (err!=nil) {
@@ -112,7 +122,21 @@ func parseData(data string) (string,error){
 	formatspec := "    06:10   11.6 23.1ºC"
 	newdata := strings.TrimSpace(data)
 	newdata = strings.Replace(data,"   "," ",-1)
-	newdata = removeNoValidCharacters(strings.TrimSpace(newdata))
+
+	partsNL := strings.Split(newdata,"\r")
+
+	for i:=len(partsNL)-1;i>=0;i-- {
+		str := removeNoValidCharacters(strings.TrimSpace(partsNL[i]))
+		if str!="" {
+			newdata = str
+			break
+		}
+	}
+
+	if newdata=="" {
+		return newdata,nil
+	}
+
 	parts := strings.Split(newdata," ")
 
 	if (len(parts)<1){
@@ -121,7 +145,7 @@ func parseData(data string) (string,error){
 	}
 
 	partsNoEmpty := 0
-	for i:=0;i<=len(parts);i++  {
+	for i:=0;i<len(parts)-1;i++  {
 		if (strings.TrimSpace(parts[i])!="") {
 			partsNoEmpty++
 			if (partsNoEmpty==2) {

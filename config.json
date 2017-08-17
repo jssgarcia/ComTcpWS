@@ -5,7 +5,8 @@
     "Databits": 8,
     "Stopbits": 1,
     "ParityMode": 0,
-    "ReadInternval": 1000
+    "ReadTimeout": 2000,
+    "ReadInterval": 1000
   },
 
   "ServerTcpAddress": "192.168.1.16:10003"

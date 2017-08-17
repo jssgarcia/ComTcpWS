@@ -3,6 +3,7 @@ package lgg
 import (
 	"github.com/Sirupsen/logrus"
 	_ "github.com/gogap/logrus_mate/hooks/file"
+	_ "github.com/gogap/logrus_mate/hooks/slack"
 	"github.com/gogap/logrus_mate"
 	_"path/filepath"
 	_"os"

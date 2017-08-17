@@ -36,4 +36,8 @@
     name = "github.com/jacobsa/go-serial"
     branch = "master"
 
+[[constraint]]
+    name = "github.com/johntdyer/slackrus"
+    branch = "master"
+
 
